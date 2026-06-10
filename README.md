@@ -22,14 +22,6 @@ Un outil web moderne, léger et ultra-rapide permettant de **découper**, **extr
 - **[pdf-lib](https://pdf-lib.js.org/)** : Bibliothèque principale pour charger, copier, fusionner et générer les documents PDF.
 - **[JSZip](https://stuk.github.io/jszip/)** : Pour la compression des pages individuelles en archive ZIP lors de la séparation totale.
 - **[Tailwind CSS v4](https://tailwindcss.com/)** : Pour un stylisage ultra-moderne, rapide et responsive (via CDN natif).
-
-## 🚀 Installation et Utilisation Locale
-
-Ce projet est entièrement autonome. Il ne nécessite **aucun serveur**, **aucun Node.js**, ni **aucune installation complexe**.
-
-1. **Téléchargez** le code source ou clonez le dépôt :
-   ```bash
-   git clone [https://github.com/votre-utilisateur/nom-du-projet.git](https://github.com/votre-utilisateur/nom-du-projet.git)
    
 ## 🚀 Déploiement et Utilisation
 

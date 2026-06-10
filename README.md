@@ -30,3 +30,33 @@ Ce projet est entièrement autonome. Il ne nécessite **aucun serveur**, **aucun
 1. **Téléchargez** le code source ou clonez le dépôt :
    ```bash
    git clone [https://github.com/votre-utilisateur/nom-du-projet.git](https://github.com/votre-utilisateur/nom-du-projet.git)
+   
+## 🚀 Déploiement et Utilisation
+
+### 🌍 Utilisation en ligne (Recommandé)
+L'application est configurée pour être déployée instantanément sur **GitHub Pages**. 
+👉 **[Cliquez ici pour accéder à l'application en direct](https://votre-utilisateur.github.io/nom-du-projet/)** *(Remplacez par votre lien réel)*
+
+---
+
+### 🛠️ Déploiement sur votre propre compte GitHub
+
+Puisque le projet est composé uniquement de fichiers statiques (HTML/JS), son déploiement sur GitHub Pages ne prend que quelques secondes :
+
+1. **Créez un dépôt** sur GitHub et poussez-y votre code (le fichier `index.html` doit être à la racine).
+2. Rendez-vous dans les **Settings** (Paramètres) de votre dépôt GitHub.
+3. Dans le menu de gauche, cliquez sur **Pages**.
+4. Dans la section **Build and deployment** :
+   - Source : Sélectionnez `Deploy from a branch`.
+   - Branch : Choisissez `main` (ou `master`) et le dossier `/ (root)`.
+5. Cliquez sur **Save**. 
+
+Votre application sera en ligne à l'adresse `https://votre-nom-d-utilisateur.github.io/votre-nom-de-depot/` en moins d'une minute !
+
+---
+
+### 💻 Utilisation Locale (Alternative)
+Si vous préférez l'exécuter hors ligne :
+1. Clonez le dépôt :
+   ```bash
+   git clone [https://github.com/votre-utilisateur/nom-du-projet.git](https://github.com/votre-utilisateur/nom-du-projet.git)

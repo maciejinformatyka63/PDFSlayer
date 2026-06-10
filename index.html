@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Séparateur de PDF Ultra-Rapide</title>
+    <title>Boîte à Outils PDF Ultra-Rapide</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -11,16 +11,21 @@
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col justify-between">
 
     <main class="max-w-3xl mx-auto my-12 p-8 bg-white rounded-2xl shadow-xl border border-slate-100 w-full">
-        <h1 class="text-3xl font-extrabold text-center text-indigo-600 mb-2">✂️ Séparateur de PDF</h1>
-        <p class="text-center text-slate-500 mb-8">Découpez vos PDF instantanément, localement et en toute sécurité.</p>
+        <div class="flex justify-center space-x-4 mb-8 border-b border-slate-100 pb-4">
+            <button id="tab-split" class="px-6 py-2 font-bold text-indigo-600 border-b-2 border-indigo-600 cursor-pointer">✂️ Séparer</button>
+            <button id="tab-merge" class="px-6 py-2 font-bold text-slate-400 hover:text-slate-600 cursor-pointer">🧲 Fusionner</button>
+        </div>
+
+        <h1 id="main-title" class="text-3xl font-extrabold text-center text-indigo-600 mb-2">✂️ Séparateur de PDF</h1>
+        <p id="main-desc" class="text-center text-slate-500 mb-8">Découpez vos PDF instantanément, localement et en toute sécurité.</p>
 
         <div id="drop-zone" class="border-3 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/30 transition-all">
             <input type="file" id="pdf-input" accept=".pdf" class="hidden">
-            <p class="text-lg font-medium text-slate-700">Glissez-déposez votre PDF ici ou <span class="text-indigo-600 underline">parcourez</span></p>
-            <p class="text-sm text-slate-400 mt-1">Fichier PDF uniquement</p>
+            <p id="drop-text" class="text-lg font-medium text-slate-700">Glissez-déposez votre PDF ici ou <span class="text-indigo-600 underline">parcourez</span></p>
+            <p class="text-sm text-slate-400 mt-1">Fichier(s) PDF uniquement</p>
         </div>
 
-        <div id="options-section" class="hidden mt-8 space-y-6">
+        <div id="options-split-section" class="hidden mt-8 space-y-6">
             <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <p class="font-semibold text-slate-700">Fichier chargé : <span id="file-name" class="text-indigo-600"></span></p>
                 <p class="text-sm text-slate-500">Nombre total de pages : <span id="total-pages" class="font-bold">0</span></p>
@@ -45,8 +50,19 @@
                 <input type="text" id="page-range" placeholder="Ex: 1-5" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
 
-            <button id="process-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg shadow-indigo-200 cursor-pointer text-center block">
+            <button id="process-split-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg shadow-indigo-200 cursor-pointer text-center block">
                 Séparer le PDF
+            </button>
+        </div>
+
+        <div id="options-merge-section" class="hidden mt-8 space-y-6">
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <p class="font-semibold text-slate-700 mb-2">Fichiers à fusionner (dans l'ordre) :</p>
+                <ul id="merge-files-list" class="space-y-1 text-sm text-slate-600 list-disc list-inside"></ul>
+            </div>
+
+            <button id="process-merge-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg shadow-emerald-200 cursor-pointer text-center block">
+                Fusionner les PDF
             </button>
         </div>
     </main>
@@ -58,65 +74,128 @@
     <script>
         const { PDFDocument } = PDFLib;
         
-        // Éléments du DOM
+        // Navigation Onglets
+        const tabSplit = document.getElementById('tab-split');
+        const tabMerge = document.getElementById('tab-merge');
+        const mainTitle = document.getElementById('main-title');
+        const mainDesc = document.getElementById('main-desc');
+        const dropText = document.getElementById('drop-text');
+
+        // Éléments Communs
         const dropZone = document.getElementById('drop-zone');
         const pdfInput = document.getElementById('pdf-input');
-        const optionsSection = document.getElementById('options-section');
+
+        // Éléments Séparation
+        const optionsSplitSection = document.getElementById('options-split-section');
         const fileNameSpan = document.getElementById('file-name');
         const totalPagesSpan = document.getElementById('total-pages');
         const btnAll = document.getElementById('btn-all');
         const btnRange = document.getElementById('btn-range');
         const rangeInputContainer = document.getElementById('range-input-container');
         const pageRangeInput = document.getElementById('page-range');
-        const processBtn = document.getElementById('process-btn');
+        const processSplitBtn = document.getElementById('process-split-btn');
 
-        let currentPdfBytes = null;
+        // Éléments Fusion
+        const optionsMergeSection = document.getElementById('options-merge-section');
+        const mergeFilesList = document.getElementById('merge-files-list');
+        const processMergeBtn = document.getElementById('process-merge-btn');
+
+        // États de l'application
+        let currentTool = 'split'; // 'split' ou 'merge'
+        let currentSplitPdfBytes = null;
         let totalPages = 0;
-        let mode = 'all'; // 'all' ou 'range'
+        let splitMode = 'all'; // 'all' ou 'range'
+        let filesToMerge = []; // Tableau d'objets { name, bytes }
 
-        // Gestion du Drag & Drop et clic
+        // --- GESTION DES ONGLETS / NAVIGATION ---
+        function switchTool(tool) {
+            currentTool = tool;
+            resetUI();
+            if (tool === 'split') {
+                tabSplit.className = "px-6 py-2 font-bold text-indigo-600 border-b-2 border-indigo-600 cursor-pointer";
+                tabMerge.className = "px-6 py-2 font-bold text-slate-400 hover:text-slate-600 cursor-pointer";
+                mainTitle.textContent = "✂️ Séparateur de PDF";
+                mainTitle.className = "text-3xl font-extrabold text-center text-indigo-600 mb-2";
+                mainDesc.textContent = "Découpez vos PDF instantanément, localement et en toute sécurité.";
+                dropText.innerHTML = 'Glissez-déposez votre PDF ici ou <span class="text-indigo-600 underline">parcourez</span>';
+                pdfInput.multiple = false;
+            } else {
+                tabMerge.className = "px-6 py-2 font-bold text-emerald-600 border-b-2 border-emerald-600 cursor-pointer";
+                tabSplit.className = "px-6 py-2 font-bold text-slate-400 hover:text-slate-600 cursor-pointer";
+                mainTitle.textContent = "🧲 Fusionneur de PDF";
+                mainTitle.className = "text-3xl font-extrabold text-center text-emerald-600 mb-2";
+                mainDesc.textContent = "Assemblez plusieurs fichiers PDF en un seul document instantanément.";
+                dropText.innerHTML = 'Glissez-déposez vos PDF ici ou <span class="text-emerald-600 underline">parcourez</span>';
+                pdfInput.multiple = true;
+            }
+        }
+
+        tabSplit.addEventListener('click', () => switchTool('split'));
+        tabMerge.addEventListener('click', () => switchTool('merge'));
+
+        // --- GESTION DRAG & DROP ---
         dropZone.addEventListener('click', () => pdfInput.click());
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-indigo-50/30'); });
-        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-indigo-500', 'bg-indigo-50/30'); });
+        dropZone.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            const colorClass = currentTool === 'split' ? 'border-indigo-500' : 'border-emerald-500';
+            const bgClass = currentTool === 'split' ? 'bg-indigo-50/30' : 'bg-emerald-50/30';
+            dropZone.classList.add(colorClass, bgClass); 
+        });
+        dropZone.addEventListener('dragleave', () => { 
+            dropZone.className = "border-3 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/30 transition-all";
+        });
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            const file = e.dataTransfer.files[0];
-            if (file && file.type === "application/pdf") handleFile(file);
+            handleFilesSelection(e.dataTransfer.files);
         });
         pdfInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) handleFile(e.target.files[0]);
+            handleFilesSelection(e.target.files);
         });
 
-        // Lecture du fichier PDF
-        async function handleFile(file) {
+        // Routeur de fichiers reçus
+        async function handleFilesSelection(fileList) {
+            const validFiles = Array.from(fileList).filter(file => file.type === "application/pdf");
+            if (validFiles.length === 0) return;
+
+            // Si l'utilisateur glisse plusieurs fichiers alors qu'il est sur l'onglet "Séparer", basculer automatiquement sur "Fusionner"
+            if (validFiles.length > 1 && currentTool === 'split') {
+                switchTool('merge');
+            }
+
+            if (currentTool === 'split') {
+                await handleSplitFile(validFiles[0]);
+            } else {
+                await handleMergeFiles(validFiles);
+            }
+        }
+
+        // --- ACTIONS SÉPARATION ---
+        async function handleSplitFile(file) {
             fileNameSpan.textContent = file.name;
-            currentPdfBytes = await file.arrayBuffer();
+            currentSplitPdfBytes = await file.arrayBuffer();
             
-            // Charger le PDF pour compter les pages
-            const pdfDoc = await PDFDocument.load(currentPdfBytes, { ignoreEncryption: true });
+            const pdfDoc = await PDFDocument.load(currentSplitPdfBytes, { ignoreEncryption: true });
             totalPages = pdfDoc.getPageCount();
             totalPagesSpan.textContent = totalPages;
 
-            optionsSection.classList.remove('hidden');
+            optionsSplitSection.classList.remove('hidden');
             dropZone.classList.add('hidden');
         }
 
-        // Changement de mode (Toutes ou Plage)
         btnAll.addEventListener('click', () => {
-            mode = 'all';
+            splitMode = 'all';
             btnAll.className = "p-4 border-2 border-indigo-600 bg-indigo-50/50 rounded-xl text-left cursor-pointer";
             btnRange.className = "p-4 border-2 border-slate-200 rounded-xl text-left cursor-pointer hover:border-slate-300";
             rangeInputContainer.classList.add('hidden');
         });
 
         btnRange.addEventListener('click', () => {
-            mode = 'range';
+            splitMode = 'range';
             btnRange.className = "p-4 border-2 border-indigo-600 bg-indigo-50/50 rounded-xl text-left cursor-pointer";
             btnAll.className = "p-4 border-2 border-slate-200 rounded-xl text-left cursor-pointer hover:border-slate-300";
             rangeInputContainer.classList.remove('hidden');
         });
 
-        // Analyse de la chaîne de caractères pour les plages de pages (ex: "1-3, 5")
         function parsePageRange(text, maxPages) {
             const pages = new Set();
             const parts = text.split(',');
@@ -125,7 +204,7 @@
                 if (part.includes('-')) {
                     const [start, end] = part.split('-').map(Number);
                     if (start && end && start <= end) {
-                        for (let i = start; i <= end; i++) if (i <= maxPages) pages.add(i - 1); // -1 car index 0 en JS
+                        for (let i = start; i <= end; i++) if (i <= maxPages) pages.add(i - 1);
                     }
                 } else {
                     const num = Number(part);
@@ -135,18 +214,16 @@
             return Array.from(pages).sort((a, b) => a - b);
         }
 
-        // Traitement et extraction
-        processBtn.addEventListener('click', async () => {
-            if (!currentPdfBytes) return;
-            processBtn.disabled = true;
-            processBtn.textContent = "Traitement en cours...";
+        processSplitBtn.addEventListener('click', async () => {
+            if (!currentSplitPdfBytes) return;
+            processSplitBtn.disabled = true;
+            processSplitBtn.textContent = "Traitement en cours...";
 
             try {
-                const srcPdfDoc = await PDFDocument.load(currentPdfBytes);
+                const srcPdfDoc = await PDFDocument.load(currentSplitPdfBytes);
                 const zip = new JSZip();
 
-                if (mode === 'all') {
-                    // Extraire CHAQUE page individuellement
+                if (splitMode === 'all') {
                     for (let i = 0; i < totalPages; i++) {
                         const newPdf = await PDFDocument.create();
                         const [copiedPage] = await newPdf.copyPages(srcPdfDoc, [i]);
@@ -154,13 +231,14 @@
                         const pdfBytes = await newPdf.save();
                         zip.file(`page_${i + 1}.pdf`, pdfBytes);
                     }
+                    const content = await zip.generateAsync({ type: "blob" });
+                    downloadBlob(content, "pages_extraites.zip");
                 } else {
-                    // Extraire une plage de pages dans un SEUL nouveau fichier PDF
                     const pageIndices = parsePageRange(pageRangeInput.value, totalPages);
                     if (pageIndices.length === 0) {
                         alert("Veuillez entrer une plage de pages valide (ex: 1-3).");
-                        processBtn.disabled = false;
-                        processBtn.textContent = "Séparer le PDF";
+                        processSplitBtn.disabled = false;
+                        processSplitBtn.textContent = "Séparer le PDF";
                         return;
                     }
                     const newPdf = await PDFDocument.create();
@@ -168,40 +246,91 @@
                     copiedPages.forEach(page => newPdf.addPage(page));
                     const pdfBytes = await newPdf.save();
                     
-                    // Téléchargement direct pour le fichier unique
                     const blob = new Blob([pdfBytes], { type: "application/pdf" });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `pdf_extrait.pdf`;
-                    link.click();
-                    
-                    resetUI();
-                    return;
+                    downloadBlob(blob, `pdf_extrait.pdf`);
                 }
-
-                // Génération et téléchargement du ZIP (pour le mode 'all')
-                const content = await zip.generateAsync({ type: "blob" });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(content);
-                link.download = "pages_extraites.zip";
-                link.click();
-
                 resetUI();
-
             } catch (error) {
                 console.error(error);
                 alert("Une erreur est survenue lors du traitement du PDF.");
-                processBtn.disabled = false;
-                processBtn.textContent = "Séparer le PDF";
+                processSplitBtn.disabled = false;
+                processSplitBtn.textContent = "Séparer le PDF";
             }
         });
 
+        // --- ACTIONS FUSION (NOUVEAU) ---
+        async function handleMergeFiles(files) {
+            for (const file of files) {
+                const bytes = await file.arrayBuffer();
+                filesToMerge.push({ name: file.name, bytes : bytes });
+                
+                const li = document.createElement('li');
+                li.textContent = file.name;
+                mergeFilesList.appendChild(li);
+            }
+            optionsMergeSection.classList.remove('hidden');
+            dropZone.classList.add('hidden');
+        }
+
+        processMergeBtn.addEventListener('click', async () => {
+            if (filesToMerge.length === 0) return;
+            processMergeBtn.disabled = true;
+            processMergeBtn.textContent = "Fusion en cours...";
+
+            try {
+                const mergedPdf = await PDFDocument.create();
+
+                for (const fileObj of filesToMerge) {
+                    const srcPdfDoc = await PDFDocument.load(fileObj.bytes, { ignoreEncryption: true });
+                    const pageIndices = Array.from({ length: srcPdfDoc.getPageCount() }, (_, i) => i);
+                    const copiedPages = await mergedPdf.copyPages(srcPdfDoc, pageIndices);
+                    copiedPages.forEach(page => mergedPdf.addPage(page));
+                }
+
+                const mergedPdfBytes = await mergedPdf.save();
+                const blob = new Blob([mergedPdfBytes], { type: "application/pdf" });
+                downloadBlob(blob, "pdf_fusionne.pdf");
+
+                resetUI();
+            } catch (error) {
+                console.error(error);
+                alert("Une erreur est survenue lors de la fusion des PDF.");
+                processMergeBtn.disabled = false;
+                processMergeBtn.textContent = "Fusionner les PDF";
+            }
+        });
+
+        // --- FONCTIONS UTILITAIRES ---
+        function downloadBlob(blob, filename) {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
         function resetUI() {
-            processBtn.disabled = false;
-            processBtn.textContent = "Séparer le PDF";
-            optionsSection.classList.add('hidden');
+            // Reset des boutons d'actions
+            processSplitBtn.disabled = false;
+            processSplitBtn.textContent = "Séparer le PDF";
+            processMergeBtn.disabled = false;
+            processMergeBtn.textContent = "Fusionner les PDF";
+            
+            // Masquer les options, réafficher le drop-zone
+            optionsSplitSection.classList.add('hidden');
+            optionsMergeSection.classList.add('hidden');
             dropZone.classList.remove('hidden');
+            
+            // Nettoyage des données & inputs
             pdfInput.value = "";
+            pageRangeInput.value = "";
+            mergeFilesList.innerHTML = "";
+            currentSplitPdfBytes = null;
+            filesToMerge = [];
+            totalPages = 0;
+            
+            // Reset de la bordure du drop-zone
+            dropZone.className = "border-3 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/30 transition-all";
         }
     </script>
 </body>
